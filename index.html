@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>FindACZ · 校区定位工具</title>
+<style>
+  :root{
+    --brand:#2f6fed; --brand-dark:#1f56c8; --brand-bg:#eaf1fe;
+    --ok:#16a34a; --warn:#d97706; --danger:#dc2626;
+    --bg:#f4f6fa; --card:#ffffff; --line:#e5e9f2; --text:#1f2733; --sub:#6b7686;
+    --radius:12px; --shadow:0 1px 3px rgba(16,24,40,.08),0 4px 16px rgba(16,24,40,.06);
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:"PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+    background:var(--bg); color:var(--text); font-size:14px; line-height:1.5;
+  }
+  /* ---------- 顶部 ---------- */
+  header{
+    height:56px; background:var(--card); border-bottom:1px solid var(--line);
+    display:flex; align-items:center; gap:14px; padding:0 18px; position:relative; z-index:20;
+  }
+  .logo-img{height:34px; width:auto; flex:none; display:block;}
+  .brand{margin-left:2px;}
+  .brand-name{font-size:17px; font-weight:700; letter-spacing:.2px; white-space:nowrap;}
+  .brand-sub{font-size:12px; color:var(--sub); margin-top:1px;}
+  header .spacer{flex:1;}
+  .btn{
+    display:inline-flex; align-items:center; gap:6px; border:none; cursor:pointer;
+    border-radius:9px; padding:8px 14px; font-size:13px; font-weight:600;
+    background:var(--brand-bg); color:var(--brand); transition:.15s; white-space:nowrap;
+  }
+  .btn:hover{background:#dfe9fd;}
+  .btn.primary{background:var(--brand); color:#fff;}
+  .btn.primary:hover{background:var(--brand-dark);}
+  .btn.danger{background:#fee2e2; color:var(--danger);}
+  .btn.danger:hover{background:#fecaca;}
+  .btn.sm{padding:5px 10px; font-size:12px; border-radius:7px;}
+  .btn:disabled{opacity:.55; cursor:not-allowed;}
+  /* ---------- 主布局：单列居中 ---------- */
+  main{min-height:calc(100% - 56px); padding:16px;}
+  #panel{
+    max-width:720px; margin:0 auto; background:var(--card); border:1px solid var(--line);
+    border-radius:16px; box-shadow:var(--shadow); overflow:hidden;
+  }
+  .panel-body{padding:18px 16px 24px;}
+  .section-title{font-size:13px; font-weight:700; color:var(--sub); margin:16px 0 8px; display:flex; align-items:center; gap:6px;}
+  .section-title:first-child{margin-top:0;}
+  /* ---------- 搜索 ---------- */
+  .search-row{display:flex; gap:8px; max-width:600px; margin:0 auto;}
+  .search-row input{
+    width:100%; min-width:0; border:1px solid var(--line); border-radius:9px; padding:11px 14px;
+    font-size:14px; outline:none; background:#fafbfe; transition:.15s;
+  }
+  .search-row input:focus{border-color:var(--brand); background:#fff; box-shadow:0 0 0 3px rgba(47,111,237,.12);}
+  .search-row .input-wrap{flex:1; position:relative; min-width:0;}
+  .suggest-box{position:absolute;top:100%;left:0;background:#fff;border:1px solid var(--line);border-radius:9px;box-shadow:var(--shadow);max-height:320px;overflow-y:auto;z-index:1000;display:none;width:100%;box-sizing:border-box;margin-top:4px;}
+  .suggest-box.show{display:block;}
+  .suggest-item{padding:9px 12px; cursor:pointer; font-size:13px; border-bottom:1px solid #f1f4f9;}
+  .suggest-item:last-child{border-bottom:none;}
+  .suggest-item.no-result{cursor:default;}
+  .suggest-item .district-tag{font-size:10px; color:#7b8799; background:#f1f4f9; border-radius:4px; padding:1px 5px; flex:none;}
+  .suggest-item:hover, .suggest-item.active{background:#f4f8ff;}
+  .suggest-item .title{font-weight:600; color:var(--text); display:flex; align-items:center; gap:6px;}
+  .suggest-item .addr{font-size:11px; color:var(--sub); margin-top:3px;}
+  .loc-status{font-size:12px; color:var(--sub); margin-top:10px; display:flex; align-items:center; justify-content:center; gap:6px; max-width:600px; margin-left:auto; margin-right:auto;}
+  .loc-status .dot{width:8px; height:8px; border-radius:50%; flex:none;}
+  .dot.ok{background:var(--ok);} .dot.loading{background:var(--warn); animation:blink 1s infinite;}
+  .dot.err{background:var(--danger);}
+  .dot.none{background:#c3c9d4;}
+  @keyframes blink{50%{opacity:.3;}}
+  /* ---------- 推荐卡片 ---------- */
+  .rec-top{
+    display:flex; align-items:center; gap:10px; background:linear-gradient(135deg,#f7faff,#eef4ff);
+    border:1px solid #d9e6ff; border-radius:var(--radius); padding:10px 12px; margin-top:12px;
+  }
+  .rec-top .rank{
+    width:34px; height:34px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(135deg,#ffb020,#ff8a00); color:#fff; font-weight:800; font-size:16px;
+    box-shadow:0 3px 8px rgba(255,138,0,.35);
+  }
+  .rec-top .name{font-weight:700; font-size:14px;}
+  .rec-top .meta{font-size:12px; color:var(--sub);}
+  .rec-top .dist{margin-left:auto; text-align:right; font-weight:800; color:var(--brand); font-size:15px; white-space:nowrap;}
+  .rec-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px;}
+  .rec-card{
+    border:1px solid var(--line); border-radius:10px; padding:9px 10px; cursor:pointer; transition:.15s; background:#fff;
+  }
+  .rec-card:hover{border-color:var(--brand); box-shadow:var(--shadow);}
+  .rec-card .r2{display:flex; align-items:center; gap:6px; margin-bottom:2px;}
+  .rec-card .rank2{width:20px; height:20px; border-radius:50%; background:#eef2f8; color:#556; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex:none;}
+  .rec-card .name{font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .rec-card .meta{font-size:11px; color:var(--sub);}
+  .rec-card .dist{font-size:12px; font-weight:700; color:var(--brand);}
+  /* ---------- 校区列表 ---------- */
+  .dist-group{display:flex; align-items:center; gap:7px; font-size:12px; font-weight:700;
+    color:#5a6478; margin:14px 0 7px; padding-left:2px; letter-spacing:.5px;}
+  .dist-group::before{content:""; width:8px; height:8px; border-radius:50%;
+    background:#2f6fed; flex:none;}
+  .dist-group .cnt{font-weight:600; color:#8a94a6; background:#f1f4f9;
+    border-radius:9px; padding:1px 8px; font-size:10px; letter-spacing:0;}
+  .campus-item{
+    border:1px solid var(--line); border-radius:10px; padding:9px 10px; margin-bottom:8px;
+    background:#fff; cursor:pointer; transition:.15s; position:relative;
+  }
+  .campus-item:hover{border-color:var(--brand); box-shadow:var(--shadow);}
+  .campus-item.active{border-color:var(--brand); background:var(--brand-bg);}
+  .campus-item .top{display:flex; align-items:center; gap:8px;}
+  .campus-item .pin{width:9px; height:9px; border-radius:50%; flex:none; background:#2f6fed;}
+  .campus-item .nm{font-weight:600; font-size:13px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .campus-item .dist{font-size:12px; font-weight:700; color:var(--brand); white-space:nowrap;}
+  .campus-item .addr{font-size:11px; color:var(--sub); margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .campus-item .nav-hint{font-size:11px; color:#0f766e; margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .campus-item .row2{display:flex; align-items:center; gap:6px; margin-top:6px;}
+  .campus-item .mgr{font-size:11px; color:#475069; background:#f1f4f9; border-radius:6px; padding:2px 7px;}
+  .campus-item .qr-thumb{width:20px; height:20px; border-radius:4px; object-fit:cover; border:1px solid var(--line);}
+  .empty-tip{color:var(--sub); font-size:12px; text-align:center; padding:24px 0;}
+  /* ---------- 详情卡 ----------
+     顶部卡（#detailCard）：只由「最近校区推荐」的前三名触发
+     内联卡（.detail-card-inline）：点击「全部校区」列表项时在该项下方原位展开 */
+  .detail-card{display:none; border:1px solid #d9e6ff; background:linear-gradient(180deg,#f7faff,#fff);
+    border-radius:var(--radius); padding:12px; margin-top:12px;}
+  .detail-card.show{display:block;}
+  #detailCard{max-width:600px; margin:16px auto 0;}
+  .detail-card-inline{margin-top:-3px; margin-bottom:9px;}
+  .detail-h{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
+  .detail-h .name{font-weight:700; font-size:15px; flex:1;}
+  .detail-row{font-size:12px; color:var(--sub); margin-top:4px; display:flex; gap:6px;}
+  .detail-row b{color:var(--text); font-weight:600;}
+  .detail-qr{margin-top:10px;}
+  .detail-qr img{width:120px; height:120px; object-fit:contain; border:1px solid var(--line); border-radius:8px; cursor:zoom-in; background:#fff;}
+  .detail-qr .qr-tip{font-size:11px; color:var(--sub); margin-top:4px;}
+  #btnSettings{margin-left:4px;}
+  #settingsMask{
+    position:fixed; inset:0; background:rgba(15,23,42,.45); z-index:100; display:none;
+    align-items:flex-start; justify-content:center; padding:48px 16px; overflow-y:auto;
+  }
+  #settingsMask.show{display:flex;}
+  .hint code{background:#f1f4f9; padding:1px 4px; border-radius:4px; font-size:11px;}
+  /* ---------- 模态框（设置面板） ---------- */
+  .modal{
+    background:#fff; border-radius:16px; width:100%; max-width:460px; box-shadow:0 20px 60px rgba(15,23,42,.25);
+    padding:20px; animation:pop .18s ease;
+  }
+  @keyframes pop{from{transform:translateY(12px); opacity:0;} to{transform:none; opacity:1;}}
+  .modal{position:relative;}
+  .modal-close{position:absolute; top:12px; right:14px; width:32px; height:32px; border:none; background:transparent; color:var(--sub); font-size:24px; cursor:pointer; border-radius:8px; display:flex; align-items:center; justify-content:center; line-height:1; z-index:2;}
+  .modal-close:hover{background:#f1f4f9; color:var(--text);}
+  .modal-h{font-size:16px; font-weight:700; display:flex; align-items:center; margin-bottom:14px; padding-right:34px;}
+  .form-item{margin-bottom:12px;}
+  .form-item label{display:block; font-size:12px; color:var(--sub); margin-bottom:5px; font-weight:600;}
+  .form-item input[type=text], .form-item select{
+    width:100%; border:1px solid var(--line); border-radius:8px; padding:8px 10px; font-size:13px; outline:none; background:#fafbfe;
+  }
+  .form-item input:focus, .form-item select:focus{border-color:var(--brand); background:#fff;}
+  .form-item .hint{font-size:11px; color:var(--sub); margin-top:4px;}
+  .modal-actions{display:flex; gap:10px; margin-top:16px;}
+  .modal-actions .btn{flex:1; justify-content:center; padding:10px;}
+  /* ---------- 图片放大 ---------- */
+  #zoomMask{position:fixed; inset:0; background:rgba(10,15,25,.82); z-index:200; display:none; align-items:center; justify-content:center; cursor:zoom-out;}
+  #zoomMask.show{display:flex;}
+  #zoomMask img{max-width:88vw; max-height:88vh; background:#fff; padding:10px; border-radius:12px;}
+  /* ---------- Toast ---------- */
+  #toast{
+    position:fixed; left:50%; bottom:34px; transform:translateX(-50%) translateY(20px); z-index:300;
+    background:#1f2733; color:#fff; padding:10px 18px; border-radius:10px; font-size:13px; opacity:0;
+    pointer-events:none; transition:.25s; max-width:82vw; text-align:center;
+  }
+  #toast.show{opacity:1; transform:translateX(-50%);}
+  .map-hint{
+    position:absolute; left:12px; bottom:14px; z-index:10; background:rgba(255,255,255,.94); color:var(--sub);
+    font-size:11px; padding:6px 10px; border-radius:8px; box-shadow:var(--shadow); display:none;
+  }
+  /* ---------- 响应式 ---------- */
+  @media (max-width:820px){
+    main{padding:8px;}
+    #panel{border-radius:12px;}
+    header{padding:0 10px;}
+    .brand-sub{display:none;}
+    header .btn .bt{display:none;}
+    .rec-grid{grid-template-columns:1fr;}
+  }
+  /* 移动端深度适配 */
+  @media (max-width:560px){
+    html,body{font-size:14px;}
+    header{padding:0 8px; height:50px; gap:8px;}
+    .logo-img{height:26px;}
+    .brand-name{font-size:14px;}
+    header .btn{padding:6px 10px; min-height:34px;}
+    header .btn span{font-size:14px;}
+    main{padding:6px;}
+    #panel{border-radius:10px;}
+    .panel-body{padding:12px;}
+    .search-row{flex-wrap:wrap;}
+    .search-row #btnSearch{flex:1; min-width:80px; padding:8px 10px;}
+    .search-row .input-wrap{flex:1 1 100%; min-width:0;}
+    .section-title{font-size:14px; margin:14px 0 6px; line-height:1.45;}
+    #listTitle{font-size:14px;}
+    .loc-status{flex-wrap:wrap; text-align:center; line-height:1.5;}
+    .campus-item{padding:10px;}
+    .campus-item .nm{font-size:13px;}
+    /* 移动端地址/导航允许折行显示 2 行，避免长地址被截断看不到关键信息 */
+    .campus-item .addr{
+      font-size:12px; line-height:1.5; white-space:normal;
+      display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+    }
+    .campus-item .nav-hint{
+      font-size:11px; line-height:1.5; white-space:normal;
+      display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+    }
+    .campus-item .row2{gap:6px; font-size:11px; flex-wrap:wrap;}
+    .campus-item .qr-thumb{width:22px; height:22px;}
+    .detail-card .btn.sm{padding:4px 8px; font-size:11px;}
+    .dist-group{font-size:12px; margin:12px 0 4px;}
+    .detail-card{padding:10px;}
+    .detail-h{font-size:14px;}
+    .detail-row{font-size:12px; flex-wrap:wrap; line-height:1.55; word-break:break-word;}
+    .modal{max-width:100%; margin:0 8px;}
+    .modal-h{font-size:15px;}
+    #recBox, #detailCard{margin-left:0; margin-right:0;}
+    #zoomImg{padding:6px;}
+  }
+  /* 小屏（≤400px）：顶部空间极窄，隐藏文字品牌名（logo 图本身含品牌字样），避免横向溢出 */
+  @media (max-width:400px){
+    header{gap:6px; padding:0 6px;}
+    .brand-name{display:none;}
+    .logo-img{height:24px;}
+    header .btn{padding:6px 8px; min-height:32px;}
+    .panel-body{padding:10px;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <img class="logo-img" src="爱成长logo.png" alt="爱成长">
+  <div>
+    <div class="brand-name">FindACZ</div>
+    <div class="brand-sub">爱成长 · 校区定位</div>
+  </div>
+  <div class="spacer"></div>
+  <button class="btn" id="btnLocate" title="定位我的位置"><span>📍</span><span class="bt">定位我的位置</span></button>
+  <button class="btn" id="btnSettings" title="设置"><span>⚙️</span></button>
+</header>
+
+<main>
+  <aside id="panel">
+    <div class="panel-body" id="panelBody">
+      <div class="section-title" style="text-align:center;font-size:15px;margin-bottom:12px;">🔍 查询距离【初次使用请在右上角设置处配置API】</div>
+      <div class="search-row">
+        <div class="input-wrap">
+          <input id="addrInput" type="text" placeholder="输入地址，如：北京市海淀区中关村大街…" autocomplete="off">
+          <div id="searchSuggestions" class="suggest-box"></div>
+        </div>
+        <button class="btn primary" id="btnSearch">查询</button>
+      </div>
+      <div class="loc-status"><span class="dot none" id="locDot"></span><span id="locText">尚未定位，可点击上方「定位我的位置」或输入地址查询</span></div>
+
+      <div id="recBox" style="display:none;max-width:600px;margin:16px auto 0;">
+        <div class="section-title">🏆 最近校区推荐</div>
+        <div id="recTop"></div>
+        <div class="rec-grid" id="recGrid"></div>
+      </div>
+
+      <div id="detailCard" class="detail-card"></div>
+
+      <div class="section-title" id="listTitle">🏫 全部校区</div>
+      <div id="campusList"></div>
+    </div>
+  </aside>
+</main>
+
+<!-- 设置模态框 -->
+<div id="settingsMask">
+  <div class="modal">
+    <button class="modal-close" id="settingsClose" type="button" aria-label="关闭">×</button>
+    <div class="modal-h">⚙️ 设置</div>
+    <div class="form-item">
+      <label>腾讯地图 Key <a href="https://lbs.qq.com/dev/console/key/manage" target="_blank" rel="noopener" style="font-weight:400;font-size:11px;color:var(--brand);">如何获取？</a></label>
+      <input type="text" id="sTmapKey" placeholder="粘贴你的腾讯地图 Key">
+      <div class="hint" style="line-height:1.8;">
+        腾讯地图 Key 获取指南：<br>
+        1.点击“如何获取”跳转注册页面注册；<br>
+        2.登录后进入控制台，左侧菜单「应用管理」→「我的应用」→「创建应用」；应用名称随便填，比如FindACZ，应用类型选择「出行」,点「创建」;<br>
+        3.「添加 Key」，只勾选「WebServiceAPI」；<br>
+        4.左侧菜单「配额管理」→「账户额度」→「一键分配」→ 选中刚创建的那个Key；<br>
+        5.复制Key到网站设置中，点击保存。
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="settingsCancel">取消</button>
+      <button class="btn primary" id="settingsSave">保存并应用</button>
+    </div>
+  </div>
+</div>
+
+<div id="zoomMask"><img id="zoomImg" alt="二维码"></div>
+<div id="toast"></div>
+
+<script>
+/* =====================================================================
+ * FindACZ · 校区定位工具
+ * 数据来源：门店数据.xlsx（34 个门店，北京 22 + 广州 12，2026-09-10 导入）
+ * ===================================================================== */
+
+/* ---------- 内置门店数据 ---------- */
+var BUILTIN = [
+  {id:"dh",name:"大华校区",district:"海淀区",address:"北京市海淀区大华时尚科技大厦二层高思爱成长",manager:"蒋洋洋",navigate:""},
+  {id:"zcl",name:"知春里校区",district:"海淀区",address:"北京市海淀区中关村东路105号院103号爱成长学习空间",manager:"刘露露",navigate:""},
+  {id:"qh1",name:"清河中学店",district:"海淀区",address:"北京市海淀区清河毛纺路（清河供应站）7幢1层049室爱成长学习空间（大狐狸头）",manager:"杨晶雯",navigate:""},
+  {id:"qh2",name:"清河二店",district:"海淀区",address:"海淀区毛纺路36号院2号楼底商-02号 放学别走门头",manager:"卜薪富",navigate:""},
+  {id:"sd",name:"上地校区",district:"海淀区",address:"北京市海淀区信息路上地超市发三层爱学习成长空间",manager:"罗惠芳",navigate:""},
+  {id:"hpl",name:"和平里中路通校区",district:"东城区",address:"北京市东城区交林夹道中路通大厦底商，放学就来爱成长",manager:"王文文",navigate:""},
+  {id:"hpx",name:"和平里小黄庄校区",district:"东城区",address:"北京市朝阳区青年沟路小黄庄1号楼底商，爱成长学习空间",manager:"王文文",navigate:""},
+  {id:"ds",name:"德胜校区",district:"西城区",address:"北京市西城区黄寺大街阳光丽景北区底商爱成长学习空间（链家旁边）",manager:"刘宇",navigate:""},
+  {id:"syp",name:"芍药居北里校区",district:"朝阳区",address:"北京市朝阳区芍药居北里甲207号北侧底商，放学就来爱成长",manager:"李虎飞",navigate:""},
+  {id:"tyg",name:"太阳宫水星园校区",district:"朝阳区",address:"北京市朝阳区太阳宫水星园底商3层，爱成长学习空间",manager:"李虎飞",navigate:""},
+  {id:"rc",name:"人朝中学红玺台校区",district:"朝阳区",address:"北京市朝阳区太阳宫二街红玺台底商，爱成长学习空间",manager:"李虎飞",navigate:""},
+  {id:"yyd",name:"亚运村第五大道校区",district:"朝阳区",address:"北京市朝阳区第五大道底商西侧入口处，放学就来爱成长",manager:"李阳",navigate:""},
+  {id:"cb",name:"朝外北辰校区",district:"朝阳区",address:"北京市朝阳区第五大道底商西侧入口处，放学就来爱成长",manager:"李阳",navigate:""},
+  {id:"sy",name:"实验校区",district:"昌平区",address:"北京市昌平区振兴路49号爱成长学习空间",manager:"赵国庆",navigate:""},
+  {id:"yz",name:"一中校区",district:"昌平区",address:"昌平区东关二条9号楼",manager:"赵国庆",navigate:""},
+  {id:"sjx",name:"三街小学校区",district:"昌平区",address:"昌平区财神庙胡同小区北2门旁",manager:"赵国庆",navigate:""},
+  {id:"cpez",name:"昌平二中店",district:"昌平区",address:"北京市昌平区龙跃1西门底商，爱成长学习空间",manager:"马梓钰",navigate:""},
+  {id:"syes",name:"实验二小店",district:"昌平区",address:"北京市昌平区龙腾苑二区西门底商，爱成长学习空间",manager:"马梓钰",navigate:""},
+  {id:"yx1",name:"育新1店",district:"昌平区",address:"北京市昌平区龙锦苑四区东门底商，放学别走",manager:"马梓钰",navigate:""},
+  {id:"yx2",name:"育新2店",district:"昌平区",address:"北京市昌平区天龙苑底商，爱成长学习空间",manager:"马梓钰",navigate:""},
+  {id:"rdf",name:"人大附店",district:"昌平区",address:"北京市昌平区回龙观东大街218号，爱成长学习空间（正月十五铁锅炖大鹅旁边）",manager:"马梓钰",navigate:""},
+  {id:"hyxx",name:"霍营小学店",district:"昌平区",address:"北京市昌平区龙跃苑东4区，东门底商，爱成长学习空间",manager:"马梓钰",navigate:""},
+  {id:"yy",name:"应元店（小北1店）",district:"小北",address:"越秀区应元路139号首层之五（竹溪家宴斜对面）",manager:"沛漫",navigate:"一杯咖啡一杯茶（应元大厦店）"},
+  {id:"xsj",name:"小石街店（小北2店）",district:"小北",address:"越秀区洪桥街道小石新街首层22号",manager:"沈雯",navigate:"善道健康管理中心"},
+  {id:"dg",name:"丹桂店（小北3店）",district:"小北",address:"越秀区小北路丹桂里9-5号首层（小北路小学丹桂校区旁）",manager:"杨露",navigate:"小北幼儿园"},
+  {id:"xbbb",name:"小北本部店（小北4店）",district:"小北",address:"广州市越秀区洪桥街道马庄巷社区小北路52号粮贸大厦2楼（原金麦穗托管）",manager:"毛毛",navigate:"粮贸大厦（小北路）"},
+  {id:"tjy",name:"淘金家园1店（淘金1店）",district:"淘金",address:"越秀区淘金东路71号首层(淘金家园B区入口)",manager:"Soso",navigate:"好实惠水果（越秀淘金家园店）"},
+  {id:"zx",name:"中星北校店（淘金3店）",district:"淘金",address:"越秀区淘金北路22号之二自编之六",manager:"白羊",navigate:"中星小学北校区"},
+  {id:"tjb",name:"淘金北店（淘金4店）",district:"淘金",address:"越秀区淘金北路9号102房（淘金北路7号53号小区-南门）",manager:"萝卜",navigate:"养起源头疗养生"},
+  {id:"jl",name:"建六店（环东1店）",district:"淘金",address:"广州市越秀区建设横马路24号（建设六马路小学旁）",manager:"发发",navigate:"军民图文广告"},
+  {id:"nll",name:"农林下路店（环东2店）",district:"淘金",address:"广州市越秀区农林下路105号（农林华府正门直走100米）",manager:"乐乐",navigate:"雯雯百货店（犀牛路店）"},
+  {id:"tys",name:"铁一小店（杨箕1店）",district:"淘金",address:"广州市越秀区共和大街28号（共和村11栋101房）",manager:"圈圈",navigate:"铁路第一小学（共和大街）"},
+  {id:"dsk",name:"东山口1店",district:"淘金",address:"广州市越秀区庙前直街10号（广州市越秀区少年宫对面）",manager:"豆腐",navigate:"广州市越秀区少年宫（东山校区）"},
+  {id:"syl",name:"水荫路1店",district:"淘金",address:"广州市越秀区水荫路57号嘉富广场底商104铺",manager:"大象",navigate:""}
+];
+
+/* ---------- 内置二维码文件路径映射（22 张预置二维码） ---------- */
+var BUILTIN_QR = {
+  "dh":"负责人二维码_大华校区.png",
+  "zcl":"负责人二维码_知春里校区.png",
+  "qh1":"负责人二维码_清河中学店.png",
+  "sd":"负责人二维码_上地校区.png",
+  "hpl":"负责人二维码_中路通校区.png",
+  "ds":"负责人二维码_德胜校区.png",
+  "syp":"负责人二维码_芍药居校区.png",
+  "tyg":"负责人二维码_太阳宫校区.png",
+  "rc":"负责人二维码_红玺台校区.jpg",
+  "yyd":"负责人二维码_第五大道校区.png",
+  "yy":"负责人二维码_应元店(小北1店).png",
+  "xsj":"负责人二维码_小石街店(小北2店).png",
+  "dg":"负责人二维码_丹桂店(小北3店).png",
+  "xbbb":"负责人二维码_小北本部店(小北4店).png",
+  "tjy":"负责人二维码_淘金家园1店(淘金1店).png",
+  "zx":"负责人二维码_中星北校店(淘金3店).png",
+  "tjb":"负责人二维码_淘金北店(淘金4店).png",
+  "jl":"负责人二维码_建六店(环东1店).png",
+  "nll":"负责人二维码_农林下路店(环东2店).png",
+  "tys":"负责人二维码_铁一小店(杨箕1店).png",
+  "dsk":"负责人二维码_东山口1店.png",
+  "syl":"负责人二维码_水荫路1店.png"
+};
+// 路径前缀（方便后续如部署到子目录时统一调整）
+var BUILTIN_QR_DIR = "门店负责人二维码/";
+
+var CAMPUS_COLOR = "#2f6fed";
+var DISTRICT_COLORS = {
+  "海淀区":"#2f6fed", "东城区":"#2f6fed", "西城区":"#2f6fed",
+  "朝阳区":"#2f6fed", "昌平区":"#2f6fed", "其他":"#2f6fed"
+};
+function districtColor(d){ return DISTRICT_COLORS[d] || DISTRICT_COLORS["其他"]; }
+
+/* ---------- 安全存储（file:// 下 localStorage 可能不可用） ---------- */
+var memStore = {};
+var storage = (function(){
+  try{
+    var k = "__t"; localStorage.setItem(k,"1"); localStorage.removeItem(k);
+    return localStorage;
+  }catch(e){ return {getItem:function(n){return memStore[n]||null;}, setItem:function(n,v){memStore[n]=String(v);}, removeItem:function(n){delete memStore[n];}}; }
+})();
+function sGet(key, def){
+  try{ var v = storage.getItem("fx_" + key); return v ? JSON.parse(v) : def; }catch(e){ return def; }
+}
+function sSet(key, val){
+  try{ storage.setItem("fx_" + key, JSON.stringify(val)); }catch(e){ toast("本地存储空间不足，二维码图片可能过大"); }
+}
+
+/* ---------- 状态 ---------- */
+var state = {
+  deletedIds: new Set(sGet("deleted", [])),
+  custom: sGet("custom", []),            // 用户自定义校区（历史数据兼容）
+  overrides: sGet("overrides", {}),      // 内置校区覆盖字段 id -> {name,address,district,manager,geo}
+  geoCache: sGet("geoCache_v3", {}),     // 地址 -> {lat,lng}（v3 用于丢弃旧版错误缓存）
+  qrCache: Object.assign({}, BUILTIN_QR, sGet("qr", {})), // 先内置 22 张二维码，用户上传的可覆盖同 ID
+  myLoc:null, searchLoc:null, origin:null, distances:[],
+  recDetailId:null,                      // 顶部详情卡（仅「最近校区推荐」前三名触发）
+  listDetailId:null                      // 「全部校区」列表内联详情（点击列表项时在该项下方展开）
+};
+var runtimeCache = {}; // 校区id -> {ll:{lat,lng}, d:number}，保存运行时解析出的坐标与距离
+function setCampusPos(c, ll){
+  runtimeCache[c.id] = runtimeCache[c.id] || {};
+  runtimeCache[c.id].ll = ll;
+  c._ll = ll;
+}
+function setCampusDist(c, d){
+  runtimeCache[c.id] = runtimeCache[c.id] || {};
+  runtimeCache[c.id].d = d;
+  c._d = d;
+}
+function allCampuses(){
+  var list = BUILTIN.filter(function(c){ return !state.deletedIds.has(c.id); })
+    .map(function(c){
+      var o={}; for(var k in c) o[k]=c[k];
+      var ov = state.overrides[c.id];
+      if(ov){ for(var k in ov){ if(ov[k] != null && ov[k] !== "") o[k] = ov[k]; } }
+      o.custom=false; return o;
+    });
+  state.custom.forEach(function(c){
+    if(!state.deletedIds.has(c.id)){
+      var o={}; for(var k in c) o[k]=c[k]; o.custom=true; list.push(o);
+    }
+  });
+  list.forEach(function(c){
+    var r = runtimeCache[c.id];
+    if(r){ c._ll = r.ll; c._d = r.d; }
+  });
+  return list;
+}
+
+/* ---------- 工具函数 ---------- */
+
+/* ---------- 设置与云端同步 ---------- */
+var DEFAULT_TMAP_KEY = "OB4BZ-D4W3U-B7VVO-4PJWW-6TKDJ-WPB77";
+function effectiveTmapKey(){ return settings.tmapKey || DEFAULT_TMAP_KEY; }
+var settings = {
+  tmapKey: sGet("tmapKey", DEFAULT_TMAP_KEY)
+};
+
+function openSettings(){
+  $("sTmapKey").value = effectiveTmapKey();
+  $("settingsMask").classList.add("show");
+}
+function closeSettings(){
+  $("settingsMask").classList.remove("show");
+}
+
+function saveSettings(){
+  var key = $("sTmapKey").value.trim() || DEFAULT_TMAP_KEY;
+  settings.tmapKey = key;
+  sSet("tmapKey", key);
+  closeSettings();
+  toast("设置已保存");
+  resolveAllCampuses();
+}
+
+/* ---------- 腾讯地图 WebService API（地址解析 / 搜索联想 / 坐标转换） ---------- */
+function tmapBuildUrl(api, q){
+  var qq = {}; Object.keys(q).forEach(function(k){ qq[k] = q[k]; });
+  var qs = Object.keys(qq).map(function(k){ return encodeURIComponent(k) + "=" + encodeURIComponent(qq[k]); }).join("&");
+  return "https://apis.map.qq.com/ws/" + api + "?" + qs;
+}
+var __tmapSeq = 0;
+function tmapJsonp(url, cbName, cb){
+  var done = false;
+  window[cbName] = function(data){ if(!done){ done = true; cleanup(); cb(data); } };
+  function cleanup(){
+    try{ delete window[cbName]; }catch(e){ window[cbName] = undefined; }
+    var s = document.getElementById(cbName);
+    if(s && s.parentNode) s.parentNode.removeChild(s);
+  }
+  var s = document.createElement("script");
+  s.id = cbName; s.src = url;
+  s.onerror = function(){ if(!done){ done = true; cleanup(); cb(null); } };
+  document.head.appendChild(s);
+  setTimeout(function(){ if(!done){ done = true; cleanup(); cb(null); } }, 12000);
+}
+function tmapReq(api, params){
+  return new Promise(function(resolve){
+    var key = effectiveTmapKey();
+    if(!key){ resolve(null); return; }
+    var q = { key: key };
+    Object.keys(params).forEach(function(k){ q[k] = params[k]; });
+    var url = tmapBuildUrl(api, q);
+    fetch(url).then(function(r){ return r.json(); }).then(function(d){ resolve(d); }).catch(function(){
+      // fetch 失败（如 file:// 下 CORS 受限）时回退到 JSONP
+      var q2 = {}; Object.keys(q).forEach(function(k){ q2[k] = q[k]; });
+      var cbName = "__tmapCb" + (++__tmapSeq);
+      q2.output = "jsonp"; q2.callback = cbName;
+      tmapJsonp(tmapBuildUrl(api, q2), cbName, resolve);
+    });
+  });
+}
+/* 本地 WGS84 → GCJ02（火星坐标）转换算法，无需 Key。
+   浏览器定位返回 WGS84，校区/腾讯坐标是 GCJ02。
+   API 不可用（如示例 Key 被限流）时用它兜底，误差在 1 米内，显示距离完全够用。 */
+var __wgs2gcjLocal = (function(){
+  var a = 6378245.0, ee = 0.00669342162296594323;
+  function outOfChina(lat, lng){
+    return (lng < 72.004 || lng > 137.8347) || (lat < 0.8293 || lat > 55.8271);
+  }
+  function tLat(x, y){
+    var ret = -100.0 + 2.0*x + 3.0*y + 0.2*y*y + 0.1*x*y + 0.2*Math.sqrt(Math.abs(x));
+    ret += (20.0*Math.sin(6.0*x*Math.PI) + 20.0*Math.sin(2.0*x*Math.PI)) * 2.0/3.0;
+    ret += (20.0*Math.sin(y*Math.PI) + 40.0*Math.sin(y/3.0*Math.PI)) * 2.0/3.0;
+    ret += (160.0*Math.sin(y/12.0*Math.PI) + 320*Math.sin(y*Math.PI/30.0)) * 2.0/3.0;
+    return ret;
+  }
+  function tLng(x, y){
+    var ret = 300.0 + x + 2.0*y + 0.1*x*x + 0.1*x*y + 0.1*Math.sqrt(Math.abs(x));
+    ret += (20.0*Math.sin(6.0*x*Math.PI) + 20.0*Math.sin(2.0*x*Math.PI)) * 2.0/3.0;
+    ret += (20.0*Math.sin(x*Math.PI) + 40.0*Math.sin(x/3.0*Math.PI)) * 2.0/3.0;
+    ret += (150.0*Math.sin(x/12.0*Math.PI) + 300.0*Math.sin(x/30.0*Math.PI)) * 2.0/3.0;
+    return ret;
+  }
+  return function(lat, lng){
+    if(outOfChina(lat, lng)) return {lat: lat, lng: lng};
+    var dLat = tLat(lng - 105.0, lat - 35.0);
+    var dLng = tLng(lng - 105.0, lat - 35.0);
+    var radLat = lat/180.0*Math.PI;
+    var magic = Math.sin(radLat);
+    magic = 1 - ee*magic*magic;
+    var sqrtMagic = Math.sqrt(magic);
+    dLat = (dLat*180.0)/((a*(1-ee))/(magic*sqrtMagic)*Math.PI);
+    dLng = (dLng*180.0)/(a/sqrtMagic*Math.cos(radLat)*Math.PI);
+    return {lat: lat + dLat, lng: lng + dLng};
+  };
+})();
+function wgs2gcj(ll){
+  // 首选腾讯坐标转换接口；Key 缺失/失效时回退本地算法
+  return tmapReq("coord/v1/translate", { locations: ll.lat + "," + ll.lng, type: 1 }).then(function(res){
+    if(res && res.status === 0 && res.locations && res.locations.length){
+      var p = res.locations[0];
+      return {lat: p.lat, lng: p.lng};
+    }
+    return __wgs2gcjLocal(ll.lat, ll.lng);
+  });
+}
+
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(m){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]; }); }
+var toastTimer;
+function toast(msg){
+  var t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(function(){ t.classList.remove("show"); }, 2400);
+}
+function fmtDist(m){
+  if(m == null || isNaN(m)) return "--";
+  if(m < 1000) return Math.round(m) + " 米";
+  return (m/1000).toFixed(1) + " 公里";
+}
+// 二维码 src 补全：内置二维码存的是纯文件名，需要补 BUILTIN_QR_DIR 前缀
+function qrSrc(v){
+  if(!v) return "";
+  if(v.indexOf("data:") === 0) return v;          // 用户上传的 dataURL
+  if(/^(https?:|file:|\/)/.test(v)) return v;     // 已经是绝对 URL
+  return BUILTIN_QR_DIR + v;                       // 内置二维码文件名
+}
+function haversine(a, b){
+  var R = 6371000, rad = Math.PI/180;
+  var dLat = (b.lat - a.lat)*rad, dLng = (b.lng - a.lng)*rad;
+  var s = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(a.lat*rad)*Math.cos(b.lat*rad)*Math.sin(dLng/2)*Math.sin(dLng/2);
+  return 2*R*Math.asin(Math.sqrt(s));
+}
+
+/* ---------- 地址解析（腾讯地图 WebService，带多重回退） ---------- */
+// 城市识别：地址/区域文本 -> 城市名（用于 geocoder 的 region、place 的 boundary 参数）
+// 北京 + 广州两地门店混用，必须按地址自动判断归属城市，否则跨城地址会解析失败
+var CITY_KEYWORDS = [
+  { city:"广州", keys:["广州","越秀","天河","海珠","荔湾","白云区","黄埔","番禺","花都","南沙","增城","从化",
+                       "小北","淘金","环东","杨箕","东山口","水荫","应元","丹桂","小石"] },
+  { city:"北京", keys:["北京","海淀","东城","西城","朝阳","丰台","石景山","昌平","大兴","通州","顺义",
+                       "房山","门头沟","怀柔","平谷","密云","延庆"] }
+];
+function cityOf(text){
+  var s = String(text || "");
+  for(var i=0;i<CITY_KEYWORDS.length;i++){
+    var g = CITY_KEYWORDS[i];
+    for(var j=0;j<g.keys.length;j++){
+      if(s.indexOf(g.keys[j]) >= 0) return g.city;
+    }
+  }
+  return "北京";   // 默认北京（门店主体在北京）
+}
+function cacheGeo(address, ll){
+  state.geoCache[address] = {lat: ll.lat, lng: ll.lng};
+  sSet("geoCache_v3", state.geoCache);
+}
+function tryGeocode(address, region){
+  return tmapReq("geocoder/v1", { address: address, region: region || cityOf(address) }).then(function(res){
+    if(res && res.status === 0 && res.result && res.result.location){
+      var loc = res.result.location;
+      return {lat: loc.lat, lng: loc.lng};
+    }
+    return null;
+  });
+}
+function searchPlace(keyword, region){
+  var c = region || cityOf(keyword);
+  return tmapReq("place/v1/search", { keyword: keyword, boundary: "region(" + c + ",0)", page_size: 5 }).then(function(res){
+    if(res && res.status === 0 && res.data && res.data.length){
+      for(var i=0;i<res.data.length;i++){
+        var loc = res.data[i].location;
+        if(loc && loc.lat != null && loc.lng != null) return {lat: loc.lat, lng: loc.lng};
+      }
+    }
+    return null;
+  });
+}
+function fetchSuggestions(keyword, limit){
+  return tmapReq("place/v1/suggestion", { keyword: keyword, region: cityOf(keyword), page_size: limit || 8 }).then(function(res){
+    if(res && res.status === 0 && res.data && res.data.length){
+      return res.data.map(function(d){
+        var loc = d.location;
+        return {
+          title: d.title || "",
+          address: d.address || "",
+          district: (d.ad_info && d.ad_info.district) || "",
+          location: loc ? {lat: loc.lat, lng: loc.lng} : null
+        };
+      }).filter(function(it){ return it.title || it.location; }).slice(0, limit || 8);
+    }
+    return [];
+  });
+}
+function makeCandidates(address){
+  var list = [address];
+  var city = cityOf(address);                 // 北京 / 广州
+  var cityFull = city + "市";
+  var hasCity = address.indexOf(city) >= 0;
+  if(!hasCity) list.push(cityFull + address);
+  list.push(address + " " + city);
+  if(!hasCity) list.push(cityFull + address + " " + city);
+  // 常见后缀退化，帮助模糊地名命中
+  var suffixes = ["园","小区","号楼","号院","社区","公寓","大厦","中心","广场"];
+  suffixes.forEach(function(s){
+    if(address.length > s.length && address.lastIndexOf(s) === address.length - s.length){
+      var root = address.slice(0, address.length - s.length);
+      list.push(root);
+      if(!hasCity) list.push(cityFull + root);
+    }
+  });
+  // 去重
+  return list.filter(function(v,i,a){ return a.indexOf(v) === i; });
+}
+function geocode(address){
+  return new Promise(function(resolve){
+    if(state.geoCache[address]){ resolve({lat: state.geoCache[address].lat, lng: state.geoCache[address].lng}); return; }
+    var region = cityOf(address);
+    var candidates = makeCandidates(address);
+    function tryOne(idx){
+      if(idx >= candidates.length){ resolve(null); return; }
+      var kw = candidates[idx];
+      tryGeocode(kw, region).then(function(ll){
+        if(ll){ cacheGeo(address, ll); resolve(ll); return; }
+        searchPlace(kw, region).then(function(ll2){
+          if(ll2){ cacheGeo(address, ll2); resolve(ll2); return; }
+          tryOne(idx + 1);
+        });
+      });
+    }
+    tryOne(0);
+  });
+}
+function geocodeCampus(c){
+  return geocode(c.geo || c.address).then(function(ll){ return ll; });
+}
+
+/* ---------- 校区坐标解析 ---------- */
+function resolveAllCampuses(){
+  var cps = allCampuses(), okCount = 0;
+  function processOne(idx){
+    if(idx >= cps.length){
+      if(okCount === 0 && cps.length){
+        toast("校区坐标解析失败：请检查设置中的腾讯地图 Key（当前为官方示例 Key，可能被限流，建议申请自己的 Key 替换）");
+      }
+      refreshDistances();
+      return;
+    }
+    var c = cps[idx];
+    geocodeCampus(c).then(function(ll){
+      if(ll){ setCampusPos(c, ll); okCount++; }
+      setTimeout(function(){ processOne(idx + 1); }, 70);
+    });
+  }
+  processOne(0);
+}
+
+/* ---------- 定位 / 搜索 ---------- */
+function setMyLocation(ll, label){
+  state.myLoc = {lat:ll.lat, lng:ll.lng, label:label};
+  state.origin = state.myLoc;
+  state.searchLoc = null;
+  setLocStatus("ok", "定位成功：" + label);
+  refreshDistances();
+}
+function setLocStatus(cls, text){
+  var dot = $("locDot"); dot.className = "dot " + cls;
+  $("locText").textContent = text;
+}
+function doSearch(){
+  var addr = $("addrInput").value.trim();
+  if(!addr){ toast("请输入要查询的地址"); return; }
+  setLocStatus("loading", "正在解析地址…");
+  geocode(addr).then(function(ll){
+    if(!ll){
+      setLocStatus("err", "地址解析失败，请补充更详细的信息（如：北京市XX区XX路XX号）");
+      return;
+    }
+    state.searchLoc = {lat:ll.lat, lng:ll.lng, label:addr};
+    state.origin = state.searchLoc;
+    setLocStatus("ok", "查询地址：" + addr);
+    refreshDistances();
+  });
+}
+function refreshDistances(){
+  if(!state.origin){ renderCampusList(); return; }
+  var cps = allCampuses(), withPos = cps.filter(function(c){ return c._ll; });
+  var pending = cps.filter(function(c){ return !c._ll; });
+  var wait = Promise.resolve();
+  pending.forEach(function(c){
+    wait = wait.then(function(){
+      return geocodeCampus(c).then(function(ll){
+        if(ll){ setCampusPos(c, ll); }
+      });
+    });
+  });
+  wait.then(function(){
+    var list = [];
+    cps.forEach(function(c){
+      if(c._ll){
+        var d = haversine(state.origin, c._ll);
+        list.push({c:c, d:d});
+        setCampusDist(c, d);
+      }else{ setCampusDist(c, null); }
+    });
+    list.sort(function(a,b){ return a.d - b.d; });
+    state.distances = list;
+    renderRecommend(list);
+    renderCampusList();
+    renderTopDetail();   // 已展开的顶部卡同步刷新距离（内联卡随列表一起重绘）
+  });
+}
+
+/* ---------- 渲染：推荐 ---------- */
+function renderRecommend(list){
+  var box = $("recBox");
+  var withDist = list.filter(function(x){ return x.d != null; });
+  if(withDist.length === 0){ box.style.display = "none"; return; }
+  box.style.display = "block";
+  var top = withDist[0];
+  var html = '<div class="rec-top" data-id="' + top.c.id + '">' +
+    '<div class="rank">1</div>' +
+    '<div><div class="name">' + esc(top.c.name) + '</div>' +
+    '<div class="meta">负责人：' + esc(top.c.manager || "未填写") + '</div></div>' +
+    '<div class="dist">' + fmtDist(top.d) + '</div></div>';
+  var grid = "";
+  for(var i=1;i<Math.min(3, withDist.length);i++){
+    var x = withDist[i];
+    grid += '<div class="rec-card" data-id="' + x.c.id + '">' +
+      '<div class="r2"><div class="rank2">' + (i+1) + '</div><div class="name">' + esc(x.c.name) + '</div></div>' +
+      '<div class="meta">' + esc(x.c.manager || "负责人未填写") + '</div>' +
+      '<div class="dist">' + fmtDist(x.d) + '</div></div>';
+  }
+  $("recTop").innerHTML = html;
+  $("recGrid").innerHTML = grid;
+  // 推荐区（前三名）点击 → 展开顶部信息卡
+  [].forEach.call(document.querySelectorAll("#recBox [data-id]"), function(el){
+    el.addEventListener("click", function(){ selectFromRec(el.getAttribute("data-id")); });
+  });
+}
+
+/* ---------- 渲染：校区列表（始终按区域分组） ---------- */
+var DISTRICT_ORDER = ["海淀区","东城区","西城区","朝阳区","昌平区","小北","淘金"];
+function renderCampusList(){
+  var cps = allCampuses();
+  $("listTitle").textContent = "🏫 全部校区（" + cps.length + " 所）";
+  var box = $("campusList"), html = "";
+  // 按区域分组
+  var groups = {};
+  cps.forEach(function(c){ (groups[c.district || "其他"] = groups[c.district || "其他"] || []).push(c); });
+  // 区域顺序：海淀→东城→朝阳→西城→昌平，未列出的区域（如自定义）依次排在后面
+  var order = DISTRICT_ORDER.slice();
+  Object.keys(groups).forEach(function(d){ if(order.indexOf(d) === -1) order.push(d); });
+  order.forEach(function(d){
+    var arr = groups[d];
+    if(!arr) return;
+    // 组内：已定位/查询时按距离近→远，否则保持内置顺序
+    arr = arr.slice().sort(function(a,b){
+      var da = a._d == null ? 1e18 : a._d, db = b._d == null ? 1e18 : b._d;
+      return da - db;
+    });
+    html += '<div class="dist-group">' + esc(d) + '<span class="cnt">' + arr.length + ' 所</span></div>';
+    arr.forEach(function(c){
+      html += campusItemHtml(c);
+      // 内联详情卡：点击「全部校区」下的校区时，就在它自己的位置展开
+      if(state.listDetailId === c.id){
+        html += '<div class="detail-card show detail-card-inline" data-detail-id="' + esc(c.id) + '">' +
+                detailCardHtml(c) + '</div>';
+      }
+    });
+  });
+  box.innerHTML = html || '<div class="empty-tip">暂无校区数据</div>';
+  [].forEach.call(box.querySelectorAll(".campus-item"), function(el){
+    var id = el.getAttribute("data-id");
+    el.addEventListener("click", function(){ selectFromList(id); });
+  });
+  [].forEach.call(box.querySelectorAll(".detail-card-inline"), function(el){
+    bindDetailCard(el, function(){ state.listDetailId = null; renderCampusList(); });
+  });
+}
+function campusItemHtml(c){
+  var qr = state.qrCache[c.id];
+  return '<div class="campus-item' + (state.listDetailId===c.id?" active":"") + '" data-id="' + c.id + '">' +
+    '<div class="top"><span class="pin"></span>' +
+    '<span class="nm">' + esc(c.name) + '</span>' +
+    (c._d != null ? '<span class="dist">' + fmtDist(c._d) + '</span>' : '') + '</div>' +
+    '<div class="addr">' + esc(c.address) + '</div>' +
+    (c.navigate ? '<div class="nav-hint">🧭 导航定位：' + esc(c.navigate) + '</div>' : '') +
+    '<div class="row2"><span class="mgr">👤 ' + esc(c.manager || "未填写") + '</span>' +
+    (c.custom ? '<span class="mgr" style="background:#fff3e0;color:#b45309;">自定义</span>' : '') +
+    (qr ? '<img class="qr-thumb" src="' + esc(qrSrc(qr)) + '" alt="二维码">' : '') +
+    '</div></div>';
+}
+
+/* =====================================================================
+ * 校区的两个「展开位置」互不干扰：
+ *   1) 顶部信息卡 #detailCard —— 只有点击「最近校区推荐」里的前三名才会展开到这里
+ *   2) 列表内联信息卡 .detail-card-inline —— 点击「全部校区」下的某个校区，就在该校区
+ *      自己的位置（列表项下方）展开，不会跳回顶部
+ * ===================================================================== */
+function findCampus(id){
+  return allCampuses().filter(function(x){ return x.id === id; })[0] || null;
+}
+function detailCardHtml(c){
+  var d = c._d, qr = state.qrCache[c.id];
+  return '<div class="detail-h"><span class="pin" style="width:10px;height:10px;border-radius:50%;background:#2f6fed;flex:none;"></span>' +
+    '<span class="name">' + esc(c.name) + '</span>' +
+    '<button class="btn sm d-close" type="button">收起</button></div>' +
+    '<div class="detail-row">📍 地址：<b>' + esc(c.address) + '</b></div>' +
+    '<div class="detail-row">🗺 区域：<b>' + esc(c.district || "未分类") + '</b></div>' +
+    '<div class="detail-row">👤 负责人：<b>' + esc(c.manager || "未填写") + '</b></div>' +
+    (c.navigate ? '<div class="detail-row">🧭 导航定位：<b>' + esc(c.navigate) + '</b></div>' : '') +
+    (c.business ? '<div class="detail-row">📋 业务：<b>' + esc(c.business) + '</b></div>' : '') +
+    (d != null ? '<div class="detail-row">📏 距查询点：<b>' + fmtDist(d) + '（直线距离）</b></div>' : '') +
+    '<div class="detail-qr"><div class="detail-row" style="margin-bottom:6px;">🖼 负责人微信二维码：</div>' +
+    (qr ? '<img src="' + esc(qrSrc(qr)) + '" class="qr-big" alt="微信二维码">' : '<span style="font-size:12px;color:#8a94a6;">尚未上传二维码</span>') +
+    '<div class="qr-tip">' + (qr ? '点击图片可放大' : '') + '</div></div>';
+}
+function bindDetailCard(card, onClose){
+  var cb = card.querySelector(".d-close");
+  cb && cb.addEventListener("click", function(ev){ ev.stopPropagation(); onClose(); });
+  var zb = card.querySelector(".qr-big");
+  zb && zb.addEventListener("click", function(ev){
+    ev.stopPropagation();
+    $("zoomImg").src = zb.src; $("zoomMask").classList.add("show");
+  });
+}
+/* --- 顶部信息卡：仅「最近校区推荐」触发 --- */
+function renderTopDetail(){
+  var card = $("detailCard");
+  var c = state.recDetailId ? findCampus(state.recDetailId) : null;
+  if(!c){ state.recDetailId = null; card.classList.remove("show"); card.innerHTML = ""; return; }
+  card.innerHTML = detailCardHtml(c);
+  card.classList.add("show");
+  bindDetailCard(card, function(){
+    state.recDetailId = null; card.classList.remove("show"); card.innerHTML = "";
+  });
+}
+function selectFromRec(id){
+  if(state.recDetailId === id){                 // 再次点击同一个推荐 → 收起
+    state.recDetailId = null; renderTopDetail(); return;
+  }
+  state.recDetailId = id;
+  state.listDetailId = null;                    // 收起列表里的内联卡，避免同屏出现两张详情
+  renderCampusList();
+  renderTopDetail();
+  $("detailCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+}
+/* --- 列表内联信息卡：点击「全部校区」下的校区，就在自己的位置展开 --- */
+function selectFromList(id){
+  var c = findCampus(id);
+  if(!c) return;
+  if(state.listDetailId === id){                // 再次点击同一个校区 → 收起
+    state.listDetailId = null; renderCampusList(); return;
+  }
+  // 顶部卡只服务于推荐区，点列表时收起，避免两张卡指向不同校区
+  state.recDetailId = null;
+  var top = $("detailCard"); top.classList.remove("show"); top.innerHTML = "";
+  state.listDetailId = id;
+  renderCampusList();
+  revealInlineDetail(id);
+}
+// 展开后若内联卡底部超出视口，把该校区项滚到视口顶部附近，保证刚展开的内容可见
+function revealInlineDetail(id){
+  var cardEl = document.querySelector('.detail-card-inline[data-detail-id="' + id + '"]');
+  if(!cardEl) return;
+  var vh = window.innerHeight || document.documentElement.clientHeight;
+  if(cardEl.getBoundingClientRect().bottom <= vh - 10) return;   // 已完整可见，不动
+  var item = document.querySelector('#campusList .campus-item[data-id="' + id + '"]');
+  if(!item) return;
+  var top = window.pageYOffset + item.getBoundingClientRect().top - 10;
+  window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+}
+
+// ESC 关闭弹窗
+document.addEventListener("keydown", function(e){
+  if(e.key !== "Escape") return;
+  if($("searchSuggestions").classList.contains("show")){ hideSuggestions(); return; }
+  if($("zoomMask").classList.contains("show")) $("zoomMask").classList.remove("show");
+});
+
+/* ---------- 地址搜索联想 ---------- */
+var suggestTimer, suggestIndex = -1, currentSuggestions = [];
+function hideSuggestions(){
+  $("searchSuggestions").classList.remove("show");
+  suggestIndex = -1; currentSuggestions = [];
+}
+function positionSuggestions(){
+  // suggest-box 在 input-wrap 内绝对定位，宽度已 100%，无需再算
+}
+function renderSuggestions(list){
+  var box = $("searchSuggestions"), html = "";
+  if(!list || !list.length){
+    box.innerHTML = '<div class="suggest-item no-result">未找到相关地点</div>';
+    box.classList.add("show");
+    currentSuggestions = []; suggestIndex = -1;
+    return;
+  }
+  currentSuggestions = list; suggestIndex = -1;
+  list.forEach(function(item, idx){
+    var district = item.district || ((item.address || "").match(/[^省]+市-?([^区县]+[区县])/) || [])[1] || "";
+    html += '<div class="suggest-item" data-index="' + idx + '">' +
+      '<div class="title"><span>' + esc(item.title) + '</span>' +
+      (district ? '<span class="district-tag">' + esc(district) + '</span>' : '') + '</div>' +
+      (item.address ? '<div class="addr">' + esc(item.address) + '</div>' : '') +
+      '</div>';
+  });
+  box.innerHTML = html;
+  box.classList.add("show");
+  [].forEach.call(box.querySelectorAll(".suggest-item:not(.no-result)"), function(el){
+    el.addEventListener("mouseenter", function(){ setActiveSuggestion(parseInt(this.getAttribute("data-index"), 10)); });
+  });
+}
+function setActiveSuggestion(idx){
+  var items = $("searchSuggestions").querySelectorAll(".suggest-item:not(.no-result)");
+  items.forEach(function(el){ el.classList.remove("active"); });
+  suggestIndex = Math.max(0, Math.min(idx, items.length - 1));
+  if(items[suggestIndex]) items[suggestIndex].classList.add("active");
+}
+function selectSuggestion(idx){
+  var item = currentSuggestions[idx];
+  if(!item || !item.location){ hideSuggestions(); return; }
+  var label = item.title || item.address || "";
+  $("addrInput").value = label;
+  hideSuggestions();
+  state.searchLoc = {lat: item.location.lat, lng: item.location.lng, label: label};
+  state.origin = state.searchLoc;
+  setLocStatus("ok", "查询地址：" + label);
+  refreshDistances();
+}
+// 输入时触发联想
+$("addrInput").addEventListener("input", function(){
+  clearTimeout(suggestTimer);
+  var kw = this.value.trim();
+  if(kw.length < 1){ hideSuggestions(); return; }
+  suggestTimer = setTimeout(function(){
+    fetchSuggestions(kw, 8).then(function(list){ renderSuggestions(list); });
+  }, 250);
+});
+// 键盘上下选择 / Enter 确认
+$("addrInput").addEventListener("keydown", function(e){
+  var showing = $("searchSuggestions").classList.contains("show");
+  if(showing){
+    if(e.key === "ArrowDown"){ e.preventDefault(); setActiveSuggestion(suggestIndex + 1); }
+    else if(e.key === "ArrowUp"){ e.preventDefault(); setActiveSuggestion(suggestIndex - 1); }
+    else if(e.key === "Enter"){
+      e.preventDefault();
+      if(suggestIndex >= 0 && suggestIndex < currentSuggestions.length) selectSuggestion(suggestIndex);
+      else{ hideSuggestions(); doSearch(); }
+    }
+  }else{
+    if(e.key === "Enter") doSearch();
+  }
+});
+// 建议框内点击：阻止 item 上的 mousedown 导致 input blur 消失，用事件委托让整行可点
+$("searchSuggestions").addEventListener("mousedown", function(e){
+  if(e.target.closest(".suggest-item:not(.no-result)")) e.preventDefault();
+});
+$("searchSuggestions").addEventListener("click", function(e){
+  var item = e.target.closest(".suggest-item:not(.no-result)");
+  if(!item) return;
+  selectSuggestion(parseInt(item.getAttribute("data-index"), 10));
+});
+// 点击外部隐藏联想
+$("addrInput").addEventListener("blur", function(){ setTimeout(hideSuggestions, 180); });
+function refreshSuggestPosition(){
+  if($("searchSuggestions").classList.contains("show")) positionSuggestions();
+}
+window.addEventListener("resize", refreshSuggestPosition);
+
+/* ---------- 事件绑定 ---------- */
+/* 设置面板事件 */
+$("btnSettings").onclick = openSettings;
+$("settingsClose").onclick = closeSettings;
+$("settingsCancel").onclick = closeSettings;
+$("settingsMask").addEventListener("click", function(e){ if(e.target === $("settingsMask")) closeSettings(); });
+$("settingsSave").onclick = saveSettings;
+
+$("btnLocate").onclick = function(){
+  if(!navigator.geolocation){ toast("当前浏览器不支持定位"); return; }
+  setLocStatus("loading", "正在获取你的位置…");
+  navigator.geolocation.getCurrentPosition(function(pos){
+    var ll = {lat: pos.coords.latitude, lng: pos.coords.longitude};
+    // 浏览器坐标是 WGS84，校区坐标是 GCJ02，先统一坐标系再计算距离
+    wgs2gcj(ll).then(function(c){
+      setMyLocation(c, "当前位置");
+      toast("定位成功，已按距离排序校区");
+    });
+  }, function(err){
+    var msg = "定位失败";
+    if(err && err.code === 1) msg = "定位被拒绝：请在浏览器设置中允许位置权限";
+    setLocStatus("err", msg);
+  }, { enableHighAccuracy:true, timeout:10000, maximumAge:30000 });
+};
+$("btnSearch").onclick = doSearch;
+$("zoomMask").addEventListener("click", function(){ this.classList.remove("show"); });
+
+/* ---------- 启动 ---------- */
+function boot(){
+  resolveAllCampuses();
+  renderCampusList();
+}
+function startApp(){
+  renderCampusList();
+  boot();
+}
+if(document.readyState === "complete") startApp(); else window.addEventListener("load", startApp);
+</script>
+</body>
+</html>
